@@ -2,7 +2,7 @@ import pandas as pd  #for data manipulation and analysis.
 import numpy as np  #for numerical operations
 from sklearn.preprocessing import StandardScaler #standardize numerical features.
 
-df = pd.read_csv("D:/downloads/ai_workforce_displacement_dirty - ai_workforce_displacement_dirty.csv.csv")
+df = pd.read_csv("D:/downloads/ai_workforce_displacement_dirty.csv.csv")
 df.head()  #Display the first 5 rows
 print("Dataset Shape:", df.shape)  #number of rows and columns
 print("\nColumn Names:")
