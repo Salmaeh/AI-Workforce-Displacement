@@ -137,13 +137,36 @@ if missing["data_source_notes"] > 0:
     df["data_source_notes"].fillna(canonical_note, inplace=True)
 
 
-# check for remaining missing values
+#Check for remaining missing values and handling them
+#Handling missing counts using the general median will cause the data to be skewed when ranked by country, industry and year.
+#The most optimal solution is to use the median or mean of the parameter that affects the numbers the most.
+df = df.sort_values(['country', 'year', 'quarter']).reset_index(drop=True)
+# --- Group 1: slow-moving, time-based columns -> interpolate within each country ---
+time_based_cols = ['gdp_per_capita_usd', 'ai_adoption_index', 'reskilling_programs_count']
+for col in time_based_cols:
+    df[col] = df.groupby('country')[col].transform(
+        lambda s: s.interpolate(method='linear', limit_direction='both')
+    )
+    # Fallback: if a country had NO data at all for a column, interpolation
+    # can't help — fall back to that column's global median so nothing is left NaN
+    if df[col].isna().any():
+        df[col] = df[col].fillna(df[col].median())
+# --- Group 2: sector-driven traits -> fill with the sector's median ---
+sector_based_cols = ['sector_automation_risk_score', 'pct_workforce_female']
+for col in sector_based_cols:
+    df[col] = df[col].fillna(df.groupby('industry_sector')[col].transform('median'))
+    if df[col].isna().any():
+        df[col] = df[col].fillna(df[col].median())
+# --- Group 3: sparse counts -> median within sector + year ---
+df['ai_cited_layoff_announcements'] = df['ai_cited_layoff_announcements'].fillna(
+    df.groupby(['industry_sector', 'year'])['ai_cited_layoff_announcements'].transform('median')
+)
+if df['ai_cited_layoff_announcements'].isna().any():
+    df['ai_cited_layoff_announcements'] = df['ai_cited_layoff_announcements'].fillna(
+        df['ai_cited_layoff_announcements'].median())
+missing = df.isna().sum()
 print("\nRemaining missing values by column:")
-print(missing[missing > 0])   #I identified the remaining missing values and kept them as NaN
-blank_notes = df["data_source_notes"].isna() | (df["data_source_notes"] == "")
-if blank_notes.any():
-    canonical_note = df.loc[~blank_notes, "data_source_notes"].mode().iloc[0]
-    df.loc[blank_notes, "data_source_notes"] = canonical_note
+print(missing[missing > 0])  
 
 
 #Save clean dataset
